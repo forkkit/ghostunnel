@@ -100,7 +100,7 @@ var (
 	enabledCipherSuites     = app.Flag("cipher-suites", "Set of cipher suites to enable, comma-separated, in order of preference (AES, CHACHA).").Default("AES,CHACHA").String()
 	useWorkloadAPI          = app.Flag("use-workload-api", "If true, certificate and root CAs are retrieved via the SPIFFE Workload API").Bool()
 	useWorkloadAPIAddr      = app.Flag("use-workload-api-addr", "If set, certificates and root CAs are retrieved via the SPIFFE Workload API at the specified address (implies --use-workload-api)").PlaceHolder("ADDR").String()
- 	allowUnsafeCipherSuites = app.Flag("allow-unsafe-cipher-suites", "Allow cipher suites deemed to be unsafe to be enabled via the cipher-suites flag.").Hidden().Default("false").Bool()
+	allowUnsafeCipherSuites = app.Flag("allow-unsafe-cipher-suites", "Allow cipher suites deemed to be unsafe to be enabled via the cipher-suites flag.").Hidden().Default("false").Bool()
 
 	// Reloading and timeouts
 	timedReload     = app.Flag("timed-reload", "Reload keystores every given interval (e.g. 300s), refresh listener/client on changes.").PlaceHolder("DURATION").Duration()
@@ -615,7 +615,9 @@ func (context *Context) serveStatus() error {
 		mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 	}
 
-	network, address, _, err := socket.ParseAddress(*statusAddress)
+	https, addr := socket.ParseHTTPAddress(*statusAddress)
+
+	network, address, _, err := socket.ParseAddress(addr)
 	if err != nil {
 		return err
 	}
@@ -626,7 +628,7 @@ func (context *Context) serveStatus() error {
 		return err
 	}
 
-	if network != "unix" && context.tlsConfigSource.CanServe() {
+	if network != "unix" && https && context.tlsConfigSource.CanServe() {
 		config, err := buildServerConfig(*enabledCipherSuites)
 		if err != nil {
 			return err
